@@ -1,6 +1,7 @@
 import pandas as pd
 import fastparquet
 import obspy as obs
+from io import BytesIO
 import boto3
 from botocore.client import Config
 
@@ -32,6 +33,12 @@ def bucket_download(bucket_name, object_name, station_name):
     minio_client.download_file(bucket_name, object_path, download_path)
     print(f"Arquivo {object_name} baixado para {download_path}.")
 
+def get_sac_from_minio(bucket_name, object_name, station_name, minio_client):
+    object_path = f"{station_name}/{object_name}"
+    
+    response = minio_client.get_object(Bucket=bucket_name, Key=object_path)
+    sac_file = BytesIO(response['Body'].read())
+    return sac_file
 
 if __name__ == '__main__':
     bucket_name = 'bucket-teste'
