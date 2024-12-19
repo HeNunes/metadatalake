@@ -32,13 +32,13 @@ def bucket_download(bucket_name, object_name, station_name):
     minio_client.download_file(bucket_name, object_path, download_path)
     print(f"Arquivo {object_name} baixado para {download_path}.")
 
-bucket_name = 'bucket-teste'
-parquet_path = 'metadata/dim_dataobject.parquet'
-station_name = 'NBAN'
-sac_path = 'NB.NBAN..HHE.D.2022,1,8-20-29.SAC'
 
-file_path = f"{station_name}/{sac_path}"
-print(file_path)
+if __name__ == '__main__':
+    bucket_name = 'bucket-teste'
+    parquet_path = 'metadata/dim_dataobject.parquet'
+    station_name = 'NBAN'
+    sac_path = 'NB.NBAN..HHE.D.2022,1,8-20-29.SAC'
+    file_path = f"{station_name}/{sac_path}"
 
-bucket_download(bucket_name=bucket_name, object_name=sac_path, station_name=station_name)
-bucket_upload(file_path=file_path, bucket_name=bucket_name, object_name="teste")
+    bucket_download(bucket_name=bucket_name, object_name=sac_path, station_name=station_name)
+    bucket_upload(file_path=file_path, bucket_name=bucket_name, object_name="teste")
