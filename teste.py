@@ -10,11 +10,7 @@ from MinioUtils import bucket_download, bucket_upload, get_sac_from_minio
 def query_1(spark, minio_client):
     query = """
     SELECT DISTINCT dim_dataobject.unique_source_id, 
-           dim_dataobject.title,
-           dim_datarepository.storage_type, 
-           dim_datarepository.connection_string, 
-           dim_datarepository.connection_username, 
-           dim_datarepository.connection_password
+           dim_datarepository.connection_username
     FROM fact_seismology
     INNER JOIN dim_dataprovider
     ON fact_seismology.sk_dataprovider = dim_dataprovider.sk_dataprovider
@@ -25,15 +21,46 @@ def query_1(spark, minio_client):
     WHERE dim_dataprovider.station_state = 'Alagoas'
     """
 
+    result_df = spark.sql(query)
+    file_result = result_df.collect()
+
+    # Itera sobre resultados
+    # Calcula amplitude e compara com max amplitude
+    # Armazena id de max_amplitude
+
+    i = 0
+    max_id = 0 
+    max_amplitude = 0
+    for file in file_result:
+        obs_file = get_sac_from_minio(bucket_name="bucket-teste", object_name=file['unique_source_id'], 
+                        station_name=(file['connection_username']).upper(), minio_client=minio_client)
+        
+        obs = read(obs_file)
+        amplitude = obs[0].data.max() - obs[0].data.min()
+        if amplitude > max_amplitude:
+            max_amplitude = amplitude
+            max_id = i
+        i += 1
+    
+    print(max_id, max_amplitude)
+
+    # Obtendo o arquivo correspondente
+    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=file_result[max_id]['unique_source_id'], 
+                        station_name=(file_result[max_id]['connection_username']).upper(), minio_client=minio_client)
+
+    print("Writing result in Minio")
+    file = io.BytesIO()
+    read(obs).write(file, format="SAC")
+    file.seek(0) 
+    minio_client.put_object(Bucket="bucket-teste", Key="result-1", Body=file, ContentLength=file.getbuffer().nbytes)
+
+
     
 
 def query_2(spark, minio_client):
     query = """
     SELECT dim_dataobject.unique_source_id,
-           dim_datarepository.storage_type, 
-           dim_datarepository.connection_string, 
-           dim_datarepository.connection_username, 
-           dim_datarepository.connection_password
+           dim_datarepository.connection_username
     FROM fact_seismology
     INNER JOIN dim_dataprovider
     ON fact_seismology.sk_dataprovider = dim_dataprovider.sk_dataprovider
@@ -100,4 +127,4 @@ if __name__ == '__main__':
     dim_time_df = spark.read.parquet(f"{metadata_path}/dim_time.parquet")
     dim_time_df.createOrReplaceTempView("dim_time")
 
-    query_2(spark=spark, minio_client=minio_client)
+    query_1(spark=spark, minio_client=minio_client)
