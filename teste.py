@@ -5,7 +5,7 @@ import boto3
 from botocore.client import Config
 import io
 from pyspark.sql import SparkSession
-from MinioUtils import bucket_download, bucket_upload, get_sac_from_minio
+from MinioUtils import get_sac_from_minio
 
 def query_1(spark, minio_client):
     query = """
@@ -24,10 +24,6 @@ def query_1(spark, minio_client):
     result_df = spark.sql(query)
     file_result = result_df.collect()
 
-    # Itera sobre resultados
-    # Calcula amplitude e compara com max amplitude
-    # Armazena id de max_amplitude
-
     i = 0
     max_id = 0 
     max_amplitude = 0
@@ -44,7 +40,6 @@ def query_1(spark, minio_client):
     
     print(max_id, max_amplitude)
 
-    # Obtendo o arquivo correspondente
     obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=file_result[max_id]['unique_source_id'], 
                         station_name=(file_result[max_id]['connection_username']).upper(), minio_client=minio_client)
 
@@ -53,9 +48,6 @@ def query_1(spark, minio_client):
     read(obs).write(file, format="SAC")
     file.seek(0) 
     minio_client.put_object(Bucket="bucket-teste", Key="result-1", Body=file, ContentLength=file.getbuffer().nbytes)
-
-
-    
 
 def query_2(spark, minio_client):
     query = """
