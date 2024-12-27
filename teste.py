@@ -1,5 +1,4 @@
 import pandas as pd
-import fastparquet
 from obspy import read
 import boto3
 from botocore.client import Config
@@ -10,7 +9,7 @@ from MinioUtils import get_sac_from_minio
 def query_1(spark, minio_client):
     query = """
     SELECT DISTINCT dim_dataobject.unique_source_id, 
-           dim_datarepository.connection_username
+            dim_datarepository.connection_username
     FROM fact_seismology
     INNER JOIN dim_dataprovider
     ON fact_seismology.sk_dataprovider = dim_dataprovider.sk_dataprovider
@@ -50,6 +49,8 @@ def query_1(spark, minio_client):
     minio_client.put_object(Bucket="bucket-teste", Key="result-1", Body=file, ContentLength=file.getbuffer().nbytes)
 
 def query_2(spark, minio_client):
+    
+    
     query = """
     SELECT dim_dataobject.unique_source_id,
            dim_datarepository.connection_username
@@ -119,4 +120,4 @@ if __name__ == '__main__':
     dim_time_df = spark.read.parquet(f"{metadata_path}/dim_time.parquet")
     dim_time_df.createOrReplaceTempView("dim_time")
 
-    query_1(spark=spark, minio_client=minio_client)
+    query_2(spark=spark, minio_client=minio_client)

@@ -1,6 +1,3 @@
-import pandas as pd
-import fastparquet
-import obspy as obs
 from io import BytesIO
 import boto3
 from botocore.client import Config

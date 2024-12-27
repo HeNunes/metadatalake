@@ -175,3 +175,6 @@ dest/
 
 # Spark
 spark-warehouse/
+
+# CouchDB
+couchdb/
