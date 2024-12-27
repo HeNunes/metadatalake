@@ -1,5 +1,7 @@
 import pandas as pd
 
-parquet_df = pd.DataFrame(pd.read_parquet('metadatalake.parquet'))
-print(parquet_df.columns)
-parquet_df.to_csv('metadatalake.csv')
+metadatalake = pd.DataFrame(pd.read_parquet('metadatalake.parquet'))
+
+metadatalake.fillna("null", inplace=True)  # Substituindo NaN por "null"
+
+metadatalake.to_csv('metadatalake.csv')

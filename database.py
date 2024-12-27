@@ -5,7 +5,15 @@ def create_db(couch):
     couch.delete('metadatalake')
     db = couch.create('metadatalake')
 
-    df = pd.DataFrame(pd.read_csv('metadata.csv'))
+    df = pd.DataFrame(pd.read_csv('metadatalake.csv'))
+    df.fillna("null", inplace=True)  # Substituindo NaN por "null"
+    df_dict = [row.to_dict() for i, row in df.iterrows()]
+
+    for doc in df_dict:
+        db.save(doc=doc)
+
+    df = pd.DataFrame(pd.read_csv('data_provider.csv'))
+    df.fillna("null", inplace=True)  # Substituindo NaN por "null"
     df_dict = [row.to_dict() for i, row in df.iterrows()]
 
     for doc in df_dict:
@@ -23,11 +31,11 @@ def source_only_1(db):
         "selector": {
             "station_state": "Alagoas"
         },
-        "fields": ["_id", "ID", "connection_username"]
+        "fields": ["ID", "unique_source_id", "connection_username"]
     }
     results = db.find(query)
     for result in results:
-        print(result['ID'])
+        print(result)
 
 def source_only_2(db):
     index_time = {
@@ -55,7 +63,7 @@ def source_only_2(db):
 if __name__ == '__main__':
     couch = couchdb.Server('http://couchdb:couchdb123@localhost:5984')
         
+   # create_db(couch=couch)
     db = couch['metadatalake']
-    print(db)
 
     source_only_1(db=db)

@@ -31,7 +31,7 @@ def query_1(db, minio_client):
             max_amplitude = amplitude
             file_result = result
     
-    print(f"Result:\n ID: {file_result['ID']} Source:{file_result['unique_source_id']} Amplitude:{max_amplitude}")
+    print(f"Result:\n ID: {file_result['ID']} Source: {file_result['unique_source_id']} Amplitude: {max_amplitude}")
 
     obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=file_result['unique_source_id'], 
                         station_name=(file_result['connection_username']).upper(), minio_client=minio_client)
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     couch = couchdb.Server('http://couchdb:couchdb123@localhost:5984')
         
-    db = couch['metadatalake']
+    db = couch['metadatawarehouse']
     print(db)
 
     query_2(db=db, minio_client=minio_client)
