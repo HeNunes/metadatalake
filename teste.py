@@ -3,44 +3,38 @@ from obspy import read
 import boto3
 from botocore.client import Config
 import io
-from pyspark.sql import SparkSession
+import couchdb
 from MinioUtils import get_sac_from_minio
 
-def query_1(spark, minio_client):
-    query = """
-    SELECT DISTINCT dim_dataobject.unique_source_id, 
-            dim_datarepository.connection_username
-    FROM fact_seismology
-    INNER JOIN dim_dataprovider
-    ON fact_seismology.sk_dataprovider = dim_dataprovider.sk_dataprovider
-    INNER JOIN dim_datarepository
-    ON fact_seismology.sk_datarepository = dim_datarepository.sk_datarepository
-    INNER JOIN dim_dataobject
-    ON fact_seismology.sk_dataobject = dim_dataobject.sk_dataobject
-    WHERE dim_dataprovider.station_state = 'Alagoas'
-    """
+def query_1(db, minio_client):
+    query = {
+        "selector": {
+            "station_state": "Alagoas"
+        },
+        "fields": ["ID", "unique_source_id", "connection_username"]
+    }
+    results = db.find(query)
 
-    result_df = spark.sql(query)
-    file_result = result_df.collect()
-
-    i = 0
-    max_id = 0 
     max_amplitude = 0
-    for file in file_result:
-        obs_file = get_sac_from_minio(bucket_name="bucket-teste", object_name=file['unique_source_id'], 
-                        station_name=(file['connection_username']).upper(), minio_client=minio_client)
+    file_result = None
+
+    for result in results:
+        obs_file = get_sac_from_minio(bucket_name="bucket-teste", object_name=result['unique_source_id'], 
+                        station_name=(result['connection_username']).upper(), minio_client=minio_client)
         
         obs = read(obs_file)
         amplitude = obs[0].data.max() - obs[0].data.min()
+
+        print(f"ID: {result['ID']} | AMPLITUDE: {amplitude}")
+
         if amplitude > max_amplitude:
             max_amplitude = amplitude
-            max_id = i
-        i += 1
+            file_result = result
     
-    print(max_id, max_amplitude)
+    print(f"Result:\n ID: {file_result['ID']} Source:{file_result['unique_source_id']} Amplitude:{max_amplitude}")
 
-    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=file_result[max_id]['unique_source_id'], 
-                        station_name=(file_result[max_id]['connection_username']).upper(), minio_client=minio_client)
+    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=file_result['unique_source_id'], 
+                        station_name=(file_result['connection_username']).upper(), minio_client=minio_client)
 
     print("Writing result in Minio")
     file = io.BytesIO()
@@ -48,38 +42,37 @@ def query_1(spark, minio_client):
     file.seek(0) 
     minio_client.put_object(Bucket="bucket-teste", Key="result-1", Body=file, ContentLength=file.getbuffer().nbytes)
 
-def query_2(spark, minio_client):
-    
-    
-    query = """
-    SELECT dim_dataobject.unique_source_id,
-           dim_datarepository.connection_username
-    FROM fact_seismology
-    INNER JOIN dim_dataprovider
-    ON fact_seismology.sk_dataprovider = dim_dataprovider.sk_dataprovider
-    INNER JOIN dim_datarepository
-    ON fact_seismology.sk_datarepository = dim_datarepository.sk_datarepository
-    INNER JOIN dim_dataobject
-    ON fact_seismology.sk_dataobject = dim_dataobject.sk_dataobject
-    INNER JOIN dim_date
-    ON fact_seismology.sk_end_date_seism = dim_date.sk_date
-    INNER JOIN dim_time
-    ON fact_seismology.sk_end_time_seism = dim_time.sk_time
-    WHERE dim_dataprovider.station_name = 'NBAN'
-    ORDER BY dim_date.date DESC, dim_time.timestamp DESC
-    LIMIT 1
-    """
+def query_2(db, minio_client):
+    index_time = {
+        "index": {
+            "fields": ["date", "timestamp"]
+        },
+        "name": "date_timestamp_index",
+        "type": "json"
+    }
+    db.resource.post('_index', index_time)
 
-    result_df = spark.sql(query)
-    file_result = result_df.collect()
+    query = {
+        "selector": {
+            "station_name": "NBAN"
+        },
+        "fields": ["ID", "unique_source_id", "connection_username"],
+        "sort": [
+            {"date": "desc"}, 
+            {"timestamp": "desc"}
+        ],
+        "limit": 1
+    }
+    results = db.find(query)
+    results = list(results)
+    result = results[0]
 
-    result_df.show()
-    print(f"Unique source id: {file_result[0]['unique_source_id']}")
-    print(f"Provider: {(file_result[0]['connection_username']).upper()}")
+    print(f"Unique source id: {result['unique_source_id']}")
+    print(f"Provider: {(result['connection_username']).upper()}")
 
     print("Downloading from Minio")
-    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=file_result[0]['unique_source_id'], 
-                        station_name=(file_result[0]['connection_username']).upper(), minio_client=minio_client)
+    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=result['unique_source_id'], 
+                        station_name=(result['connection_username']).upper(), minio_client=minio_client)
 
     print("Writing result in Minio")
     file = io.BytesIO()
@@ -98,26 +91,9 @@ if __name__ == '__main__':
         region_name='us-east-1'
     )
 
-    spark = SparkSession.builder.appName("Query test").getOrCreate()
+    couch = couchdb.Server('http://couchdb:couchdb123@localhost:5984')
+        
+    db = couch['metadatalake']
+    print(db)
 
-    metadata_path = 'metadata'
-
-    fact_seismology_df = spark.read.parquet(f"{metadata_path}/fact_seismology.parquet")
-    fact_seismology_df.createOrReplaceTempView("fact_seismology")
-
-    dim_dataprovider_df = spark.read.parquet(f"{metadata_path}/dim_dataprovider.parquet")
-    dim_dataprovider_df.createOrReplaceTempView("dim_dataprovider")
-
-    dim_datarepository_df = spark.read.parquet(f"{metadata_path}/dim_datarepository.parquet")
-    dim_datarepository_df.createOrReplaceTempView("dim_datarepository")
-
-    dim_dataobject_df = spark.read.parquet(f"{metadata_path}/dim_dataobject.parquet")
-    dim_dataobject_df.createOrReplaceTempView("dim_dataobject")
-
-    dim_date_df = spark.read.parquet(f"{metadata_path}/dim_date.parquet")
-    dim_date_df.createOrReplaceTempView("dim_date")
-
-    dim_time_df = spark.read.parquet(f"{metadata_path}/dim_time.parquet")
-    dim_time_df.createOrReplaceTempView("dim_time")
-
-    query_2(spark=spark, minio_client=minio_client)
+    query_2(db=db, minio_client=minio_client)

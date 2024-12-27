@@ -25,7 +25,9 @@ def source_only_1(db):
         },
         "fields": ["_id", "ID", "connection_username"]
     }
-    get_results(db, query)
+    results = db.find(query)
+    for result in results:
+        print(result['ID'])
 
 def source_only_2(db):
     index_time = {
@@ -56,4 +58,4 @@ if __name__ == '__main__':
     db = couch['metadatalake']
     print(db)
 
-    source_only_2(db=db)
+    source_only_1(db=db)
