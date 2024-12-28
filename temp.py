@@ -1,7 +1,10 @@
 import pandas as pd
 
-metadatalake = pd.DataFrame(pd.read_parquet('metadatalake.parquet'))
+# Carregar o arquivo CSV no DataFrame
+df = pd.read_csv('metadatalake_backup.csv')
 
-metadatalake.fillna("null", inplace=True)  # Substituindo NaN por "null"
+# Processar a coluna 'filename' para atualizar os valores
+df['filename'] = df['filename'].apply(lambda x: x.rstrip("/").split("/")[-1].replace(":", "-"))
 
-metadatalake.to_csv('metadatalake.csv')
+# Salvar o DataFrame modificado de volta em um arquivo CSV
+df.to_csv('metadatalake.csv', index=False)

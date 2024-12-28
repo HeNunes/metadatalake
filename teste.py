@@ -6,79 +6,90 @@ import io
 import couchdb
 from MinioUtils import get_sac_from_minio
 
-def query_1(db, minio_client):
-    query = {
+def query_1(couch, minio_client):
+    metadata = couch['metadatalake']
+    provider = couch['data_provider']
+
+    metadata_query = {
         "selector": {
-            "station_state": "Alagoas"
+            "ID": {"$gte": 0}
         },
-        "fields": ["ID", "unique_source_id", "connection_username"]
+        "fields": ["filename", "station"],
+        "limit": 13900
     }
-    results = db.find(query)
+    provider_query = {
+        "selector": {
+            "Estado": "AL"
+        },
+        "fields": ["Estação"],
+        "limit": 105
+    }
+
+    metadata_results = list(metadata.find(metadata_query))
+    metadata_results = {(doc['filename'], doc['station']) for doc in metadata_results}
+
+    provider_results = list(provider.find(provider_query))
+    provider_results = {doc['Estação'] for doc in provider_results}
+
+    metadata_results = [doc for doc in metadata_results if doc[1] in provider_results]
 
     max_amplitude = 0
     file_result = None
+    for result in metadata_results:
 
-    for result in results:
-        obs_file = get_sac_from_minio(bucket_name="bucket-teste", object_name=result['unique_source_id'], 
-                        station_name=(result['connection_username']).upper(), minio_client=minio_client)
+        obs_file = get_sac_from_minio(bucket_name="bucket-teste", object_name=result[0], 
+                        station_name=(result[1]), minio_client=minio_client)
         
         obs = read(obs_file)
         amplitude = obs[0].data.max() - obs[0].data.min()
-
-        print(f"ID: {result['ID']} | AMPLITUDE: {amplitude}")
 
         if amplitude > max_amplitude:
             max_amplitude = amplitude
             file_result = result
     
-    print(f"Result:\n ID: {file_result['ID']} Source: {file_result['unique_source_id']} Amplitude: {max_amplitude}")
+    print(f"Result:\nSource: {file_result[0]} Amplitude: {max_amplitude}")
 
-    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=file_result['unique_source_id'], 
-                        station_name=(file_result['connection_username']).upper(), minio_client=minio_client)
+    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=file_result[0], 
+                        station_name=(file_result[1]).upper(), minio_client=minio_client)
 
     print("Writing result in Minio")
     file = io.BytesIO()
     read(obs).write(file, format="SAC")
     file.seek(0) 
-    minio_client.put_object(Bucket="bucket-teste", Key="result-1", Body=file, ContentLength=file.getbuffer().nbytes)
+    minio_client.put_object(Bucket="bucket-teste", Key="result-1-new", Body=file, ContentLength=file.getbuffer().nbytes)
 
-def query_2(db, minio_client):
+def query_2(couch, minio_client):
+    metadata = couch['metadatalake']
+    
     index_time = {
         "index": {
-            "fields": ["date", "timestamp"]
+            "fields": ["endtime"]
         },
-        "name": "date_timestamp_index",
+        "name": "endtime_index",
         "type": "json"
     }
-    db.resource.post('_index', index_time)
+    metadata.resource.post('_index', index_time)
 
     query = {
         "selector": {
-            "station_name": "NBAN"
+            "station": "NBAN"
         },
-        "fields": ["ID", "unique_source_id", "connection_username"],
-        "sort": [
-            {"date": "desc"}, 
-            {"timestamp": "desc"}
-        ],
+        "fields": ["station", "filename", "endtime"],
+        "sort": [{"endtime" : "desc"}],
         "limit": 1
     }
-    results = db.find(query)
-    results = list(results)
-    result = results[0]
-
-    print(f"Unique source id: {result['unique_source_id']}")
-    print(f"Provider: {(result['connection_username']).upper()}")
+    results = metadata.find(query)
+    result = list(results)[0]
 
     print("Downloading from Minio")
-    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=result['unique_source_id'], 
-                        station_name=(result['connection_username']).upper(), minio_client=minio_client)
+    obs = get_sac_from_minio(bucket_name="bucket-teste", object_name=result['filename'], 
+                        station_name=(result['station']).upper(), minio_client=minio_client)
 
     print("Writing result in Minio")
     file = io.BytesIO()
     read(obs).write(file, format="SAC")
     file.seek(0) 
-    minio_client.put_object(Bucket="bucket-teste", Key="result-2", Body=file, ContentLength=file.getbuffer().nbytes)
+    minio_client.put_object(Bucket="bucket-teste", Key="result-2-new", Body=file, ContentLength=file.getbuffer().nbytes)
 
 if __name__ == '__main__':
     
@@ -92,8 +103,5 @@ if __name__ == '__main__':
     )
 
     couch = couchdb.Server('http://couchdb:couchdb123@localhost:5984')
-        
-    db = couch['metadatawarehouse']
-    print(db)
 
-    query_2(db=db, minio_client=minio_client)
+    query_2(couch=couch, minio_client=minio_client)
