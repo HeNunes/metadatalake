@@ -178,3 +178,6 @@ spark-warehouse/
 
 # CouchDB
 couchdb/
+
+# Dados baixados
+downloaded_metadata/
