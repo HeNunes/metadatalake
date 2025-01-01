@@ -79,6 +79,6 @@ def source_only_2(couch):
 if __name__ == '__main__':
     couch = couchdb.Server('http://couchdb:couchdb123@localhost:5984')
         
-    #create_db(couch=couch)
+    create_db(couch=couch)
 
-    source_only_2(couch=couch)
+    #source_only_2(couch=couch)
