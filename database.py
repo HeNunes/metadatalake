@@ -1,5 +1,8 @@
 import pandas as pd
 import couchdb
+import os
+from dotenv import load_dotenv
+from versioning import download_files_from_github
 
 def create_db(couch):
     couch.delete('metadatalake')
@@ -20,10 +23,22 @@ def get_results(db, query):
         print(result)
 
 def source_only_1(couch):
+
+    download_files_from_github(repo_owner=os.getenv('REPO_OWNER'), repo_name=os.getenv('REPO_NAME'), 
+                               folder_path=os.getenv('FOLDER_PATH'), output_folder='downloaded_metadata', token=os.getenv('GIT_TOKEN'))
+    
     metadata = couch['metadatalake']
     provider = couch['data_provider']
 
     print(metadata, provider)
+
+    added_docs = []
+    for file_path in downloaded_files:
+        with open(file_path, 'r') as f:
+            content = f.read()
+            doc = {"filename": os.path.basename(file_path), "content": content}
+            result = metadata.save(doc)
+            added_docs.append(result['id']) 
 
     metadata_query = {
         "selector": {
@@ -77,6 +92,7 @@ def source_only_2(couch):
         print(res)
 
 if __name__ == '__main__':
+    load_dotenv()
     couch = couchdb.Server('http://couchdb:couchdb123@localhost:5984')
         
     create_db(couch=couch)

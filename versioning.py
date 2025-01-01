@@ -60,5 +60,7 @@ if __name__ == '__main__':
     load_dotenv()
     output_folder = "downloaded_metadata"  
 
-    download_files_from_github(repo_owner=os.getenv('REPO_OWNER'), repo_name=os.getenv('REPO_NAME'), 
-                               folder_path=os.getenv('FOLDER_PATH'), output_folder=output_folder, token=os.getenv('GIT_TOKEN'))
+    generate_metadata()
+
+   # download_files_from_github(repo_owner=os.getenv('REPO_OWNER'), repo_name=os.getenv('REPO_NAME'), 
+    #                           folder_path=os.getenv('FOLDER_PATH'), output_folder=output_folder, token=os.getenv('GIT_TOKEN'))
