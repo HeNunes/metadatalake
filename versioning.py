@@ -12,8 +12,6 @@ def generate_metadata():
         df_adjusted['starttime'] = df_adjusted['starttime'].apply(lambda x: x.replace(year=x.year - y) if pd.notnull(x) else x)
 
         df_adjusted.to_csv(f'metadata_versioning/metadatalake-{2022 - y}.csv', index=False)
-
-def get_metadata():
     
 
 if __name__ == '__main__':
