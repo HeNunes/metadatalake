@@ -6,10 +6,11 @@ from dotenv import load_dotenv
 from versioning import download_files_from_github
 
 def create_db(couch):
-    couch.delete('metadatalake')
-    db = couch.create('metadatalake')
+   # couch.delete('metadatalake')
+    #db = couch.create('metadatalake')
+    db = couch['metadatalake']
 
-    df = pd.DataFrame(pd.read_csv('metadatalake.csv'))
+    df = pd.DataFrame(pd.read_csv('data_provider.csv'))
     df.fillna("null", inplace=True)
     df_dict = [row.to_dict() for i, row in df.iterrows()]
 
@@ -25,22 +26,22 @@ def get_results(db, query):
 
 def source_only_1(couch):
 
-    downloaded_files = download_files_from_github(repo_owner=os.getenv('REPO_OWNER'), repo_name=os.getenv('REPO_NAME'), 
-                               folder_path=os.getenv('FOLDER_PATH'), token=os.getenv('GIT_TOKEN'))
+   # downloaded_files = download_files_from_github(repo_owner=os.getenv('REPO_OWNER'), repo_name=os.getenv('REPO_NAME'), 
+   #                            folder_path=os.getenv('FOLDER_PATH'), token=os.getenv('GIT_TOKEN'))
     
     metadata = couch['metadatalake']
     provider = couch['data_provider']
 
     print(metadata, provider)
 
-    added_ids = []
-    for file_name, file_content in downloaded_files.items():
-        df = pd.read_csv(StringIO(file_content))
-        df.fillna("null", inplace=True)
-        df_dict = [row.to_dict() for i, row in df.iterrows()]
-        for doc in df_dict:
-            metadata.save(doc=doc)
-            added_ids.append(doc['ID'])
+   # added_ids = []
+   # for file_name, file_content in downloaded_files.items():
+   #     df = pd.read_csv(StringIO(file_content))
+   #     df.fillna("null", inplace=True)
+   #     df_dict = [row.to_dict() for i, row in df.iterrows()]
+   #     for doc in df_dict:
+   #         metadata.save(doc=doc)
+   #         added_ids.append(doc['ID'])
     
     metadata_query = {
         "selector": {
@@ -100,6 +101,6 @@ if __name__ == '__main__':
     load_dotenv()
     couch = couchdb.Server('http://couchdb:couchdb123@localhost:5984')
         
-    #create_db(couch=couch)
+    create_db(couch=couch)
 
-    source_only_1(couch=couch)
+    #source_only_1(couch=couch)
