@@ -181,3 +181,5 @@ couchdb/
 
 # Dados baixados
 downloaded_metadata/
+
+metadata_versioning/
